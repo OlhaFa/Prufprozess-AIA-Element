@@ -48,8 +48,8 @@ public class AIABearbeiten {
                     .scrollIntoView(true)
                     .click();
         } else {
-            System.out.println("BUTTON INITIAL BEURTEILEN IS NOT EXIST!");
-            $(buttonPrufungBeenden).click();
+          //  System.out.println("BUTTON INITIAL BEURTEILEN IS NOT EXIST!");
+          //  $(buttonPrufungBeenden).click();
             return false;
         }
         return true;
@@ -83,7 +83,7 @@ public class AIABearbeiten {
         $(buttonThreePoints).click();
     }
 
-    public void clickbuttonPrufungBeenden() {
+    public boolean clickbuttonPrufungBeenden() {
 
         if ($(buttonPrufungBeenden).exists()) {
             $(buttonPrufungBeenden)
@@ -93,7 +93,7 @@ public class AIABearbeiten {
         } else {
             System.out.println("ERROR! BUTTON  PRÜFUNG BEENDEN IS NOT EXIST!");
         }
-
+        return true;
     }
 
     public void prufungBeenden() {

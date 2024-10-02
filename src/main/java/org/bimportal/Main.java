@@ -1,19 +1,14 @@
 package org.bimportal;
 
-import org.bimportal.pages.LoginPage;
 import com.codeborne.selenide.Configuration;
 import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.WebDriverRunner;
+import org.bimportal.pages.LoginPage;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
 
 import javax.swing.*;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.FileOutputStream;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -23,17 +18,26 @@ import static com.codeborne.selenide.Selenide.page;
 public class Main {
     private static LoginPage loginPage;
     private static AIABearbeiten aiaBearbeiten;
-    private static Organisation organisation;
-    private static String lastCommand = "";
-    private static String organisationName = "";
-    private static boolean isLoggedIn = false;
+
     private static String configLoginFileName = "script_login.txt";
-    private static String configOrganisationFileName = "organisation_config.txt";
     private static String username = "";
     private static String password = "";
-    private static List<String> organisations = new ArrayList<>();
-    private static String currentDirPath = System.getProperty("user.dir");
     private static boolean repeat = true;
+
+    // Adding a list of available URLs
+    private static final String[] URLS = {
+            "https://via-integration.itz.res.bund.de/bim/infrastruktur/login",
+
+            "https://via-test.itz.res.bund.de/bim/infrastruktur/login",
+
+            "https://via.bund.de/bim/infrastruktur/login",
+
+            "https://pbb.vpn.adesso-group.com/https/bim-portal-dev04.test-server.ag/bim/infrastruktur/login"
+    };
+
+    private static String selectedUrl = ""; // Variable for the selected URL
+    private static final int TIMEOUT = 10000; // 10 seconds
+    private static final String DRIVER_NAME = "msedgedriver.exe";
 
     public static void main(String[] args) {
         Main main = new Main();
@@ -42,36 +46,60 @@ public class Main {
             main.run();
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("Press ENTER to exit...");
-            try {
-                System.in.read();
-            } catch (IOException e2) {
-                throw new RuntimeException(e2);
-            }
+            promptExit();
         } finally {
-            // Close the WebDriver when done
-            WebDriverRunner.getWebDriver().quit();
+            if (WebDriverRunner.hasWebDriverStarted()) {
+                WebDriverRunner.getWebDriver().quit();
+            }
         }
     }
 
     public void initSelenide() {
+        // URL selection through a dialog box
+        selectUrl();
+
         // Extract msedgedriver.exe from resources
-        String driverPath = extractDriverFromResources("/msedgedriver.exe");
-        System.setProperty("webdriver.edge.driver", driverPath);
+        String driverPath = extractDriverFromResources("/" + DRIVER_NAME);
+        if (driverPath != null) {
+            System.setProperty("webdriver.edge.driver", driverPath);
 
-        // Set up Edge options
-        EdgeOptions options = new EdgeOptions();
-        options.addArguments("--start-maximized"); // Start in maximized mode
+            // Set up Edge options
+            EdgeOptions options = new EdgeOptions();
+            options.addArguments("--start-maximized"); // Launch in maximized mode
 
-        // Selenide configuration
-        Configuration.browser = "edge";
-        Configuration.browserCapabilities = options;
-        Configuration.timeout = 10000;
+            // Selenide configuration
+            Configuration.browser = "edge";
+            Configuration.browserCapabilities = options;
+            Configuration.timeout = TIMEOUT;
 
-        // Initialize Selenide
-        WebDriverRunner.setWebDriver(new EdgeDriver(options));
-        // Open the login page
-        Selenide.open("https://via-integration.itz.res.bund.de/bim/infrastruktur/login");
+            // Initialize Selenide
+            WebDriverRunner.setWebDriver(new EdgeDriver(options));
+
+            // Open the selected URL
+            Selenide.open(selectedUrl);
+        } else {
+            throw new RuntimeException("Failed to initialize Edge WebDriver.");
+        }
+    }
+
+    // Method for URL selection
+    private void selectUrl() {
+        selectedUrl = (String) JOptionPane.showInputDialog(
+                null,
+                "Select the URL to log in:",
+                "URL Selection",
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                URLS,
+                URLS[0]
+        );
+
+        if (selectedUrl == null || selectedUrl.isEmpty()) {
+            System.out.println("No URL selected. Program terminated.");
+            System.exit(0); // Exit if no URL is selected
+        }
+
+        System.out.println("Selected URL: " + selectedUrl);
     }
 
     private String extractDriverFromResources(String resourcePath) {
@@ -101,107 +129,111 @@ public class Main {
         // Initialize page objects
         loginPage = page(LoginPage.class);
         aiaBearbeiten = page(AIABearbeiten.class);
-        organisation = new Organisation();
 
         if (!loadConfig()) return;
 
         // Perform login
         login();
-        selectOrganisation();
+
+        // Register a shutdown hook for CTRL-C
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Shutting down gracefully...");
+            WebDriverRunner.getWebDriver().quit(); // Close the WebDriver
+        }));
 
         // Command input loop
         try (Scanner scanner = new Scanner(System.in)) {
             while (true) {
-                if (repeat) mainScenario();
-                repeat = false;
-                System.out.println("Enter the command (\"exit\" to exit, \"repeat\" to repeat the last command): ");
-                String input = scanner.nextLine();
-
-                if (input.equalsIgnoreCase("exit") || input.equalsIgnoreCase("quit")) {
-                    System.out.println("Script completed.");
-                    break;
-                } else if (input.equalsIgnoreCase("repeat")) {
-                    System.out.println("Repeating last command...");
-                    repeat = true;
-                } else {
-                    System.out.println("ERROR! Command not recognized!");
+                if (repeat) {
+                    System.out.println("Repeating the last steps...");
+                    mainScenario();
                 }
+                repeat = false; // Reset repeat for the next iteration
+
+                System.out.println("Enter a command (\"exit\" to quit, \"return\" to repeat the last steps): ");
+                String input = scanner.nextLine().trim().toLowerCase();
+
+                if (input.equals("exit") || input.equals("quit")) {
+                    System.out.println("Script terminated. Closing the browser...");
+                    WebDriverRunner.getWebDriver().quit(); // Close the WebDriver
+                    break; // Exit loop on exit command
+                } else if (input.equals("return")) {
+                    System.out.println("Repeating the last steps...");
+                    repeat = true; // Set repeat to true to re-run the last command in the next iteration
+                } else {
+                    System.out.println("Unrecognized command! Enter \"exit\" or \"return\".");
+                }
+
                 // Use JavaScript to make links open in the current tab
                 Selenide.executeJavaScript("document.querySelectorAll('a[target=_blank]').forEach(function(link) { link.removeAttribute('target'); });");
             }
+        } finally {
+            // Ensure the browser is closed when done
+            WebDriverRunner.getWebDriver().quit();
+            System.out.println("Browser closed.");
         }
     }
 
-    private void mainScenario() {
-        // Call methods from aiaBearbeiten to perform operations
-        aiaBearbeiten.setAIABearbeiten();
-        aiaBearbeiten.clickSortIcon();
-        aiaBearbeiten.clickThreePoints();
-        if (!aiaBearbeiten.clickButtonInitialBeurteilen()) return;
-        aiaBearbeiten.clickbuttonBeurteilungStarten();
 
-        aiaBearbeiten.clickButtonPlus(username);
-        aiaBearbeiten.clickSortIcon();
-        aiaBearbeiten.clickThreePoints();
-        aiaBearbeiten.clickbuttonPrufungBeenden();
-        aiaBearbeiten.prufungBeenden();
-        aiaBearbeiten.clickSortIcon();
+    private void mainScenario() {
+        try {
+            aiaBearbeiten.setAIABearbeiten();
+            aiaBearbeiten.clickSortIcon();
+            aiaBearbeiten.clickThreePoints();
+
+            if (!aiaBearbeiten.clickButtonInitialBeurteilen()) {
+                return;
+            }
+
+            aiaBearbeiten.clickbuttonBeurteilungStarten();
+            aiaBearbeiten.clickButtonPlus(username);
+            aiaBearbeiten.clickSortIcon();
+            aiaBearbeiten.clickThreePoints();
+            aiaBearbeiten.clickbuttonPrufungBeenden();
+            aiaBearbeiten.prufungBeenden();
+            aiaBearbeiten.clickSortIcon();
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Error occurred while executing the scenario.");
+        }
     }
 
     private boolean loadConfig() {
-        // Check for user configuration file
         File configFile = new File(configLoginFileName);
+
         if (!configFile.exists() || !configFile.isFile()) {
-            System.out.println("Config file not found. Please select the config file manually.");
+            System.out.println("Configuration file not found. Please select it manually.");
             configFile = chooseFile("Select " + configLoginFileName);
         }
+
         if (configFile != null) {
             try (BufferedReader reader = new BufferedReader(new FileReader(configFile))) {
-                String selectedUserCredentials = chooseUserCredentials(reader);
-                if (selectedUserCredentials != null) {
-                    String[] credentials = selectedUserCredentials.split(",");
-                    username = credentials[0].trim();
-                    password = credentials[1].trim();
-                    if (username.isEmpty() || password.isEmpty()) {
-                        System.out.println("No login or password specified in the config file.");
+                String selectedCredentials = chooseUserCredentials(reader);
+
+                if (selectedCredentials != null) {
+                    String[] credentials = selectedCredentials.split(",");
+                    if (credentials.length == 2) {
+                        username = credentials[0].trim();
+                        password = credentials[1].trim();
+                        if (username.isEmpty() || password.isEmpty()) {
+                            System.out.println("Invalid username or password in the configuration file.");
+                            return false;
+                        }
+                        System.out.println("Selected user: " + username);
+                    } else {
+                        System.out.println("Invalid credentials format.");
                         return false;
                     }
-
-                    System.out.println("Selected from selected file - Username: " + username);
                 } else {
-                    System.out.println("No login credentials selected. Exiting.");
+                    System.out.println("No credentials selected.");
                     return false;
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-            }
-            System.out.println("Reading from " + configLoginFileName + " file in working directory...");
-        } else {
-            System.out.println("No file selected or file is invalid. Exiting.");
-            return false;
-        }
-
-        // Read the organization configuration file
-        File organisationConfigFile = new File(configOrganisationFileName);
-        if (!organisationConfigFile.exists() || !organisationConfigFile.isFile()) {
-            System.out.println("Organisation config file not found. Please select the config file manually.");
-            organisationConfigFile = chooseFile("Select " + configOrganisationFileName);
-        }
-        if (organisationConfigFile != null) {
-            try (BufferedReader reader = new BufferedReader(new FileReader(organisationConfigFile))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    organisations.add(line.trim());
-                }
-                if (organisations.isEmpty()) {
-                    System.out.println("No organisations found in the configuration file.");
-                    return false; // No organizations found
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
+                return false;
             }
         } else {
-            System.out.println("No file selected or file is invalid. Exiting.");
+            System.out.println("Configuration file not selected.");
             return false;
         }
 
@@ -209,73 +241,51 @@ public class Main {
     }
 
     private void login() {
-        // Perform login
         if (!username.isEmpty() && !password.isEmpty()) {
-            loginPage.validLoginInput(username, password); // This method clears fields and logs in
-            isLoggedIn = true; // Assuming loginPage updates this
-            System.out.println("Login completed: " + username);
+            loginPage.validLoginInput(username, password);
+            System.out.println("Logged in as: " + username);
+            try {
+                Thread.sleep(5000); // Wait for the page to load
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         } else {
-            System.out.println("No login credentials found. Please check the config file.");
-        }
-    }
-
-    private void selectOrganisation() {
-        // Convert list to array for display
-        String[] organisationsArray = organisations.toArray(new String[0]);
-        String selected = (String) JOptionPane.showInputDialog(
-                null,
-                "Select organisation:",
-                "Choose Organisation",
-                JOptionPane.PLAIN_MESSAGE,
-                null,
-                organisationsArray,
-                organisationsArray[0]
-        );
-
-        if (selected != null) {
-            organisationName = selected;
-            System.out.println("Selected Organisation: " + organisationName);
-            organisation.setOrganisationAuswahlen(organisationName); // Selecting the organization
-        } else {
-            System.out.println("No organisation selected. Exiting.");
+            System.out.println("Credentials not found. Check the configuration file.");
         }
     }
 
     private String chooseUserCredentials(BufferedReader reader) throws IOException {
         List<String> userCredentials = new ArrayList<>();
         String line;
+
         while ((line = reader.readLine()) != null) {
             userCredentials.add(line.trim());
         }
 
-        if (userCredentials.isEmpty()) {
-            return null; // No credentials found
+        if (!userCredentials.isEmpty()) {
+            String[] credentialsArray = userCredentials.toArray(new String[0]);
+            return (String) JOptionPane.showInputDialog(null, "Select user credentials:", "User Selection",
+                    JOptionPane.PLAIN_MESSAGE, null, credentialsArray, credentialsArray[0]);
         }
 
-        // Show a dialog to choose from available users
-        String[] credentialsArray = userCredentials.toArray(new String[0]);
-        String selected = (String) JOptionPane.showInputDialog(
-                null,
-                "Select user:",
-                "Choose User",
-                JOptionPane.PLAIN_MESSAGE,
-                null,
-                credentialsArray,
-                credentialsArray[0]
-        );
-
-        return selected;
+        return null;
     }
 
     private File chooseFile(String dialogTitle) {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle(dialogTitle);
-
-        // Set the directory to the path where your files are located
-        File currentDir = new File(currentDirPath);
-        fileChooser.setCurrentDirectory(currentDir);
+        fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
 
         int returnValue = fileChooser.showOpenDialog(null);
         return returnValue == JFileChooser.APPROVE_OPTION ? fileChooser.getSelectedFile() : null;
+    }
+
+    private static void promptExit() {
+        System.out.println("Press ENTER to exit...");
+        try {
+            System.in.read();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

@@ -11,7 +11,6 @@ SetupIconFile=ico-BIM.ico
 
 [Files]
 Source: "target/Prufprozess-AIA-Element-1.0-SNAPSHOT-jar-with-dependencies.jar"; DestDir: "{app}"; Flags: ignoreversion
-Source: "organisation_config.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "script_login.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "run.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "src/main/resources/msedgedriver.exe"; DestDir: "{userdesktop}\BimScript"; Flags: ignoreversion nocompression; Excludes: uninsdelete;
