@@ -10,8 +10,8 @@ import org.openqa.selenium.edge.EdgeOptions;
 import javax.swing.*;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Scanner;
 
 import static com.codeborne.selenide.Selenide.page;
 
@@ -22,18 +22,7 @@ public class Main {
     private static String configLoginFileName = "script_login.txt";
     private static String username = "";
     private static String password = "";
-    private static boolean repeat = true;
-
-    // Adding a list of available URLs
-    private static final String[] URLS = {
-            "https://via-integration.itz.res.bund.de/bim/infrastruktur/login",
-
-            "https://via-test.itz.res.bund.de/bim/infrastruktur/login",
-
-            "https://via.bund.de/bim/infrastruktur/login",
-
-            "https://pbb.vpn.adesso-group.com/https/bim-portal-dev04.test-server.ag/bim/infrastruktur/login"
-    };
+    private static boolean publish = true;
 
     private static String selectedUrl = ""; // Variable for the selected URL
     private static final int TIMEOUT = 10000; // 10 seconds
@@ -42,6 +31,7 @@ public class Main {
     public static void main(String[] args) {
         Main main = new Main();
         try {
+            if (!main.loadConfig()) return;
             main.initSelenide();
             main.run();
         } catch (Exception e) {
@@ -55,9 +45,6 @@ public class Main {
     }
 
     public void initSelenide() {
-        // URL selection through a dialog box
-        selectUrl();
-
         // Extract msedgedriver.exe from resources
         String driverPath = extractDriverFromResources("/" + DRIVER_NAME);
         if (driverPath != null) {
@@ -82,25 +69,6 @@ public class Main {
         }
     }
 
-    // Method for URL selection
-    private void selectUrl() {
-        selectedUrl = (String) JOptionPane.showInputDialog(
-                null,
-                "Select the URL to log in:",
-                "URL Selection",
-                JOptionPane.PLAIN_MESSAGE,
-                null,
-                URLS,
-                URLS[0]
-        );
-
-        if (selectedUrl == null || selectedUrl.isEmpty()) {
-            System.out.println("No URL selected. Program terminated.");
-            System.exit(0); // Exit if no URL is selected
-        }
-
-        System.out.println("Selected URL: " + selectedUrl);
-    }
 
     private String extractDriverFromResources(String resourcePath) {
         try {
@@ -130,39 +98,42 @@ public class Main {
         loginPage = page(LoginPage.class);
         aiaBearbeiten = page(AIABearbeiten.class);
 
-        if (!loadConfig()) return;
 
         // Perform login
         login();
 
-        // Register a shutdown hook for CTRL-C
+/*        // Register a shutdown hook for CTRL-C
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("Shutting down gracefully...");
             WebDriverRunner.getWebDriver().quit(); // Close the WebDriver
-        }));
+        }));*/
 
         // Command input loop
-        try (Scanner scanner = new Scanner(System.in)) {
+        //try (Scanner scanner = new Scanner(System.in)) {
+        try{
             while (true) {
-                if (repeat) {
-                    System.out.println("Repeating the last steps...");
-                    mainScenario();
-                }
-                repeat = false; // Reset repeat for the next iteration
+                var input = chooseScenario();
 
-                System.out.println("Enter a command (\"exit\" to quit, \"return\" to repeat the last steps): ");
-                String input = scanner.nextLine().trim().toLowerCase();
+//                System.out.println("Enter a command (\"exit\" to quit, \"return\" to repeat the last steps): ");
+//                String input = scanner.nextLine().trim().toLowerCase();
 
-                if (input.equals("exit") || input.equals("quit")) {
+                if (input == 0) {
                     System.out.println("Script terminated. Closing the browser...");
                     WebDriverRunner.getWebDriver().quit(); // Close the WebDriver
                     break; // Exit loop on exit command
-                } else if (input.equals("return")) {
+                } else if (input == 1) {
+                    System.out.println("Publishing...");
+                    publish = true;
+/*                } else if (input == 2) {
                     System.out.println("Repeating the last steps...");
-                    repeat = true; // Set repeat to true to re-run the last command in the next iteration
-                } else {
+                    publish = true; // Set repeat to true to re-run the last command in the next iteration
+*/                } else {
                     System.out.println("Unrecognized command! Enter \"exit\" or \"return\".");
                 }
+                if (publish) {
+                    mainScenario();
+                }
+                publish = false; // Reset repeat for the next iteration
 
                 // Use JavaScript to make links open in the current tab
                 Selenide.executeJavaScript("document.querySelectorAll('a[target=_blank]').forEach(function(link) { link.removeAttribute('target'); });");
@@ -177,21 +148,22 @@ public class Main {
 
     private void mainScenario() {
         try {
-            aiaBearbeiten.setAIABearbeiten();
-            aiaBearbeiten.clickSortIcon();
-            aiaBearbeiten.clickThreePoints();
+//            aiaBearbeiten.setAIABearbeiten();
+//            aiaBearbeiten.clickSortIcon();
+//            aiaBearbeiten.clickThreePoints();
 
-            if (!aiaBearbeiten.clickButtonInitialBeurteilen()) {
-                return;
-            }
+//            if (!aiaBearbeiten.clickButtonInitialBeurteilen()) {
+//                return;
+//            }
 
             aiaBearbeiten.clickbuttonBeurteilungStarten();
             aiaBearbeiten.clickButtonPlus(username);
             aiaBearbeiten.clickSortIcon();
             aiaBearbeiten.clickThreePoints();
-            aiaBearbeiten.clickbuttonPrufungBeenden();
-            aiaBearbeiten.prufungBeenden();
-            aiaBearbeiten.clickSortIcon();
+            if (aiaBearbeiten.clickbuttonPrufungBeenden()){
+                aiaBearbeiten.prufungBeenden();
+                aiaBearbeiten.clickSortIcon();
+            }
         } catch (Exception e) {
             e.printStackTrace();
             System.out.println("Error occurred while executing the scenario.");
@@ -212,16 +184,20 @@ public class Main {
 
                 if (selectedCredentials != null) {
                     String[] credentials = selectedCredentials.split(",");
-                    if (credentials.length == 2) {
-                        username = credentials[0].trim();
-                        password = credentials[1].trim();
-                        if (username.isEmpty() || password.isEmpty()) {
+                    if (credentials.length == 3) {
+                        selectedUrl = credentials[0].trim();
+                        username = credentials[1].trim();
+                        password = credentials[2].trim();
+                        if (selectedUrl.isEmpty()) {
+                            System.out.println("Invalid URL.");
+                            return false;
+                        }if (username.isEmpty() || password.isEmpty()) {
                             System.out.println("Invalid username or password in the configuration file.");
                             return false;
                         }
                         System.out.println("Selected user: " + username);
                     } else {
-                        System.out.println("Invalid credentials format.");
+                        System.out.println("Invalid credentials format. Use: url,username,password");
                         return false;
                     }
                 } else {
@@ -244,14 +220,30 @@ public class Main {
         if (!username.isEmpty() && !password.isEmpty()) {
             loginPage.validLoginInput(username, password);
             System.out.println("Logged in as: " + username);
-            try {
+/*            try {
                 Thread.sleep(5000); // Wait for the page to load
             } catch (InterruptedException e) {
                 e.printStackTrace();
-            }
+            }*/
         } else {
             System.out.println("Credentials not found. Check the configuration file.");
         }
+    }
+
+    private int chooseScenario() {
+        Object[] options = {
+                "Exit",
+                "Publish",
+//                "Repeat"
+        };
+        return JOptionPane.showOptionDialog(null,
+                "\"Exit\" to quit, \"Publish\" to continue",
+                "Choose a command",
+                JOptionPane.YES_NO_CANCEL_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                options,
+                options[1]);
     }
 
     private String chooseUserCredentials(BufferedReader reader) throws IOException {
@@ -264,8 +256,11 @@ public class Main {
 
         if (!userCredentials.isEmpty()) {
             String[] credentialsArray = userCredentials.toArray(new String[0]);
-            return (String) JOptionPane.showInputDialog(null, "Select user credentials:", "User Selection",
-                    JOptionPane.PLAIN_MESSAGE, null, credentialsArray, credentialsArray[0]);
+            Object[] credentialsToDisplayArray = userCredentials.stream().map(s->s.substring(0, s.lastIndexOf(","))).toArray();
+
+            var selection = (String) JOptionPane.showInputDialog(null, "Select profile:", "Profile Selection",
+                    JOptionPane.PLAIN_MESSAGE, null, credentialsToDisplayArray, credentialsToDisplayArray[0]);
+            return Arrays.stream(credentialsArray).filter(s->s.startsWith(selection)).findFirst().get();
         }
 
         return null;

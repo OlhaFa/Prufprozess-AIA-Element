@@ -92,6 +92,7 @@ public class AIABearbeiten {
                     .click();
         } else {
             System.out.println("ERROR! BUTTON  PRÜFUNG BEENDEN IS NOT EXIST!");
+            return false;
         }
         return true;
     }
