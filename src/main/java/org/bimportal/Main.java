@@ -22,6 +22,7 @@ public class Main {
     private static String configLoginFileName = "script_login.txt";
     private static String username = "";
     private static String password = "";
+    private static String filterName = "";
     private static boolean publish = true;
 
     private static String selectedUrl = ""; // Variable for the selected URL
@@ -98,7 +99,6 @@ public class Main {
         loginPage = page(LoginPage.class);
         aiaBearbeiten = page(AIABearbeiten.class);
 
-
         // Perform login
         login();
 
@@ -110,7 +110,7 @@ public class Main {
 
         // Command input loop
         //try (Scanner scanner = new Scanner(System.in)) {
-        try{
+        try {
             while (true) {
                 var input = chooseScenario();
 
@@ -127,7 +127,8 @@ public class Main {
 /*                } else if (input == 2) {
                     System.out.println("Repeating the last steps...");
                     publish = true; // Set repeat to true to re-run the last command in the next iteration
-*/                } else {
+*/
+                } else {
                     System.out.println("Unrecognized command! Enter \"exit\" or \"return\".");
                 }
                 if (publish) {
@@ -145,26 +146,29 @@ public class Main {
         }
     }
 
-
     private void mainScenario() {
         try {
-//            aiaBearbeiten.setAIABearbeiten();
-//            aiaBearbeiten.clickSortIcon();
-//            aiaBearbeiten.clickThreePoints();
+            // aiaBearbeiten.setAIABearbeiten();
 
-//            if (!aiaBearbeiten.clickButtonInitialBeurteilen()) {
-//                return;
-//            }
+            aiaBearbeiten.clickSortIcon();
+            aiaBearbeiten.filterName(filterName);
+            aiaBearbeiten.clickThreePoints();
+            aiaBearbeiten.clickButtonInitialBeurteilen();
 
             aiaBearbeiten.clickbuttonBeurteilungStarten();
             aiaBearbeiten.clickButtonPlus(username);
             aiaBearbeiten.clickSortIcon();
+            aiaBearbeiten.filterName(filterName);
+
             aiaBearbeiten.clickThreePoints();
-            if (aiaBearbeiten.clickbuttonPrufungBeenden()){
+            if (aiaBearbeiten.clickbuttonPrufungBeenden()) {
                 aiaBearbeiten.prufungBeenden();
                 aiaBearbeiten.clickSortIcon();
             }
         } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Error occurred while executing the scenario.");
+        } catch(java.lang.AssertionError e){
             e.printStackTrace();
             System.out.println("Error occurred while executing the scenario.");
         }
@@ -184,20 +188,26 @@ public class Main {
 
                 if (selectedCredentials != null) {
                     String[] credentials = selectedCredentials.split(",");
-                    if (credentials.length == 3) {
+                    if (credentials.length == 4) {
                         selectedUrl = credentials[0].trim();
-                        username = credentials[1].trim();
-                        password = credentials[2].trim();
+                        filterName = credentials[1].trim();
+                        username = credentials[2].trim();
+                        password = credentials[3].trim();
                         if (selectedUrl.isEmpty()) {
                             System.out.println("Invalid URL.");
                             return false;
-                        }if (username.isEmpty() || password.isEmpty()) {
+                        }
+                        if (filterName.isEmpty()) {
+                            System.out.println("Invalid filter username, example: Max Mustermann");
+                            return false;
+                        }
+                        if (username.isEmpty() || password.isEmpty()) {
                             System.out.println("Invalid username or password in the configuration file.");
                             return false;
                         }
                         System.out.println("Selected user: " + username);
                     } else {
-                        System.out.println("Invalid credentials format. Use: url,username,password");
+                        System.out.println("Invalid credentials format. Use: url,filter_username,email_login,password");
                         return false;
                     }
                 } else {
@@ -256,11 +266,11 @@ public class Main {
 
         if (!userCredentials.isEmpty()) {
             String[] credentialsArray = userCredentials.toArray(new String[0]);
-            Object[] credentialsToDisplayArray = userCredentials.stream().map(s->s.substring(0, s.lastIndexOf(","))).toArray();
+            Object[] credentialsToDisplayArray = userCredentials.stream().map(s -> s.substring(0, s.lastIndexOf(","))).toArray();
 
             var selection = (String) JOptionPane.showInputDialog(null, "Select profile:", "Profile Selection",
                     JOptionPane.PLAIN_MESSAGE, null, credentialsToDisplayArray, credentialsToDisplayArray[0]);
-            return Arrays.stream(credentialsArray).filter(s->s.startsWith(selection)).findFirst().get();
+            return Arrays.stream(credentialsArray).filter(s -> s.startsWith(selection)).findFirst().get();
         }
 
         return null;

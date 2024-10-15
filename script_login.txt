@@ -1,4 +1,4 @@
-https://via-test.itz.res.bund.de/bim/infrastruktur/login,youremail1@here.de,yourpassword1
-https://via-integration.itz.res.bund.de/bim/infrastruktur/login,youremail2@here.de,yourpassword2
-https://via.bund.de/bim/infrastruktur/login,youremail3@here.de,yourpassword3
-https://pbb.vpn.adesso-group.com/https/bim-portal-dev04.test-server.ag/bim/infrastruktur/login,youremail4@here.de,yourpassword4
+https://via-test.itz.res.bund.de/bim/infrastruktur/login,Max Mustermann,youremail2@here.de,yourpassword2
+https://via-integration.itz.res.bund.de/bim/infrastruktur/login,Max Mustermann,youremail2@here.de,yourpassword2
+https://via.bund.de/bim/infrastruktur/login,Max Mustermann,youremail3@here.de,yourpassword3
+https://pbb.vpn.adesso-group.com/https/bim-portal-dev04.test-server.ag/bim/infrastruktur/login,Max Mustermann,youremail4@here.de,yourpassword4

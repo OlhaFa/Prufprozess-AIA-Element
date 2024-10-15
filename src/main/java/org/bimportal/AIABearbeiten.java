@@ -7,8 +7,8 @@ import org.openqa.selenium.By;
 import java.time.Duration;
 
 import static com.codeborne.selenide.Condition.exist;
-import static com.codeborne.selenide.Selenide.$;
-import static com.codeborne.selenide.Selenide.actions;
+import static com.codeborne.selenide.Condition.visible;
+import static com.codeborne.selenide.Selenide.*;
 
 public class AIABearbeiten {
     By buttonBearbeiten = By.xpath("//button/div/span[contains(text(),'AIA')]/../../../../../following-sibling::div/div/div/button[contains(text(),'Bearbeiten')]");
@@ -48,8 +48,8 @@ public class AIABearbeiten {
                     .scrollIntoView(true)
                     .click();
         } else {
-          //  System.out.println("BUTTON INITIAL BEURTEILEN IS NOT EXIST!");
-          //  $(buttonPrufungBeenden).click();
+            System.out.println("BUTTON INITIAL BEURTEILEN IS NOT EXIST!");
+            $(buttonPrufungBeenden).click();
             return false;
         }
         return true;
@@ -79,8 +79,9 @@ public class AIABearbeiten {
     }
 
     public void clickThreePoints() {
-        By buttonThreePoints = By.xpath("(//div[@class='d-flex justify-content-end']//button[@class='btn table-button ms-1 btn-primary'])[2]");
-        $(buttonThreePoints).click();
+//        By buttonThreePoints = By.xpath("(//div[@class='d-flex justify-content-end']//button[@class='btn table-button ms-1 btn-primary'])[2]");
+        By buttonThreePoints = By.xpath("(//div[@class='d-flex justify-content-end']//button[contains(@class,'btn table-button')])[2]");
+        if ($(buttonThreePoints).is(exist, Duration.ofSeconds(10))) $(buttonThreePoints).click();
     }
 
     public boolean clickbuttonPrufungBeenden() {
@@ -101,6 +102,21 @@ public class AIABearbeiten {
         $(buttonAnnehmen).scrollIntoView(true).click();
         $(buttonBestatigen).scrollIntoView(true).click();
         $(buttonFortfahren).click();
+    }
+
+    public void filterName(String name){
+        By otherElement = By.xpath("//app-header/div[1]/div[2]/h1[1]");
+        By filter = By.xpath("//thead/tr[2]/td[5]/div[1]/div[1]/input[1]");
+
+        //$(filter).setValue("qayw").pressEnter();
+        //actions().pause(1000).perform();
+        //actions().sendKeys($(filter),"qayw").sendKeys($(filter), Keys.ENTER).pause(1000).perform();
+        //actions().sendKeys($(filter), Keys.BACK_SPACE).sendKeys($(filter), Keys.BACK_SPACE).sendKeys($(filter), Keys.BACK_SPACE).sendKeys($(filter), Keys.BACK_SPACE).pause(500).perform();
+        $(filter).shouldBe(visible, Duration.ofSeconds(10)).setValue(name).pressEnter();
+        //actions().sendKeys($(filter), name).sendKeys($(filter), Keys.ENTER).pause(2000).perform();
+        $(otherElement).click();
+        actions().pause(2000).perform();
+       // $(filterName).setValue(name);
     }
 
 }
