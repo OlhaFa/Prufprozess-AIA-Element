@@ -12,18 +12,20 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 
 import static com.codeborne.selenide.Selenide.page;
 
 public class Main {
+    static String evaluationUrl;
+
     private static LoginPage loginPage;
     private static AIABearbeiten aiaBearbeiten;
 
     private static String configLoginFileName = "script_login.txt";
     private static String username = "";
     private static String password = "";
-    private static String filterName = "";
-    private static boolean publish = true;
+    private static boolean publish = false;
 
     private static String selectedUrl = ""; // Variable for the selected URL
     private static final int TIMEOUT = 10000; // 10 seconds
@@ -110,7 +112,7 @@ public class Main {
 
         // Command input loop
         //try (Scanner scanner = new Scanner(System.in)) {
-        try {
+        /*try {
             while (true) {
                 var input = chooseScenario();
 
@@ -124,10 +126,10 @@ public class Main {
                 } else if (input == 1) {
                     System.out.println("Publishing...");
                     publish = true;
-/*                } else if (input == 2) {
+*//*                } else if (input == 2) {
                     System.out.println("Repeating the last steps...");
                     publish = true; // Set repeat to true to re-run the last command in the next iteration
-*/
+*//*
                 } else {
                     System.out.println("Unrecognized command! Enter \"exit\" or \"return\".");
                 }
@@ -139,7 +141,30 @@ public class Main {
                 // Use JavaScript to make links open in the current tab
                 Selenide.executeJavaScript("document.querySelectorAll('a[target=_blank]').forEach(function(link) { link.removeAttribute('target'); });");
             }
-        } finally {
+        }*/
+        // Command input loop
+        try (Scanner scanner = new Scanner(System.in)) {
+            while (true) {
+                if (publish) mainScenario();
+                publish = false;
+                System.out.println("Enter the command (\"exit\" to exit, \"publish\" or ENTER to publish the last command): ");
+                String input = scanner.nextLine();
+
+                if (input.equalsIgnoreCase("exit") || input.equalsIgnoreCase("quit")) {
+                    System.out.println("Script completed.");
+                    break;
+                } else if (input.equalsIgnoreCase("publish") || input.equalsIgnoreCase("")) {
+                    System.out.println("Publish command...");
+                    publish = true;
+                } else {
+                    System.out.println("ERROR! Command not recognized!");
+                }
+                // Use JavaScript to make links open in the current tab
+                Selenide.executeJavaScript("document.querySelectorAll('a[target=_blank]').forEach(function(link) { link.removeAttribute('target'); });");
+            }
+        }
+
+        finally {
             // Ensure the browser is closed when done
             WebDriverRunner.getWebDriver().quit();
             System.out.println("Browser closed.");
@@ -150,21 +175,26 @@ public class Main {
         try {
             // aiaBearbeiten.setAIABearbeiten();
 
-            aiaBearbeiten.clickSortIcon();
-            aiaBearbeiten.filterName(filterName);
-            aiaBearbeiten.clickThreePoints();
-            aiaBearbeiten.clickButtonInitialBeurteilen();
+            //aiaBearbeiten.clickSortIcon();
+            //aiaBearbeiten.filterName(filterName);
+          // aiaBearbeiten.clickThreePoints();
+          // aiaBearbeiten.clickButtonInitialBeurteilen();
+            evaluationUrl = WebDriverRunner.getWebDriver().getCurrentUrl();
+           // WebDriverRunner.getWebDriver().get(evaluationUrl.replace("initial-evaluation","validation"));
 
+            //WebDriverRunner.getWebDriver().get(evaluationUrl.replace("details","initial-evaluation"));
             aiaBearbeiten.clickbuttonBeurteilungStarten();
             aiaBearbeiten.clickButtonPlus(username);
-            aiaBearbeiten.clickSortIcon();
-            aiaBearbeiten.filterName(filterName);
+            //aiaBearbeiten.clickSortIcon();
+            //aiaBearbeiten.filterName(filterName);
 
-            aiaBearbeiten.clickThreePoints();
-            if (aiaBearbeiten.clickbuttonPrufungBeenden()) {
+            //aiaBearbeiten.clickThreePoints();
+            WebDriverRunner.getWebDriver().get(evaluationUrl.replace("initial-evaluation","validation"));
+
+            //if (aiaBearbeiten.clickbuttonPrufungBeenden()) {
                 aiaBearbeiten.prufungBeenden();
                 aiaBearbeiten.clickSortIcon();
-            }
+            //}
         } catch (Exception e) {
             e.printStackTrace();
             System.out.println("Error occurred while executing the scenario.");
@@ -188,17 +218,12 @@ public class Main {
 
                 if (selectedCredentials != null) {
                     String[] credentials = selectedCredentials.split(",");
-                    if (credentials.length == 4) {
+                    if (credentials.length == 3) {
                         selectedUrl = credentials[0].trim();
-                        filterName = credentials[1].trim();
-                        username = credentials[2].trim();
-                        password = credentials[3].trim();
+                        username = credentials[1].trim();
+                        password = credentials[2].trim();
                         if (selectedUrl.isEmpty()) {
                             System.out.println("Invalid URL.");
-                            return false;
-                        }
-                        if (filterName.isEmpty()) {
-                            System.out.println("Invalid filter username, example: Max Mustermann");
                             return false;
                         }
                         if (username.isEmpty() || password.isEmpty()) {
@@ -240,7 +265,7 @@ public class Main {
         }
     }
 
-    private int chooseScenario() {
+   /* private int chooseScenario() {
         Object[] options = {
                 "Exit",
                 "Publish",
@@ -254,7 +279,8 @@ public class Main {
                 null,
                 options,
                 options[1]);
-    }
+    }*/
+
 
     private String chooseUserCredentials(BufferedReader reader) throws IOException {
         List<String> userCredentials = new ArrayList<>();
